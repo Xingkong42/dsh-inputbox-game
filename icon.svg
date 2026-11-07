@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Snake composer">
+  <rect width="64" height="64" rx="14" fill="#10243a"/>
+  <path d="M16 47c11 0 11-15 19-15s10 7 15 7" fill="none" stroke="#4d9dff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="45" cy="38" r="3.4" fill="#eaf3ff"/>
+  <circle cx="16" cy="20" r="5.2" fill="#f5a623"/>
+</svg>

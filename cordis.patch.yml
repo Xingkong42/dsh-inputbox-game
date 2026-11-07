@@ -1,0 +1,25 @@
+# 输入框小游戏台 / Composer mini-game stage.
+#
+# 插入一个 `dsh-inputbox-game` 声明行。该包本体是一个纯浏览器插件：
+# 宿主半面（index.js）只负责把配置通过一条只读 HTTP 路由下发，其余全在
+# client.js 里。
+#
+# 宿主半面为什么几乎什么都不做：
+# - 触发条件只需要「这个会话是否正在运行」，这是客户端 `useSessionStatus`
+#   已经发布的事实，宿主再转发一遍只会多一条链路。
+# - 插件不写任何状态、不改会话日志，也不需要新的服务或工具。
+#
+# 可选配置（取消注释即可生效）。设置页（设置 → 插件 → 输入框小游戏）里的
+# 选择会覆盖这里的默认值；配置由宿主半面通过
+# `/api/dsh-inputbox-game/config` 下发给浏览器半面。
+#
+# - insert:
+#     - id: dsh-inputbox-game
+#       name: 'dsh-inputbox-game'
+#       config:
+#         thresholdMs: 180000                        # 任务连续运行多久后接管输入框
+#         rotationMs: 180000                         # 多久轮换一次游戏，0 = 不轮换
+#         games: [snake, pong, flappy, life]         # 游戏池
+- insert:
+    - id: dsh-inputbox-game
+      name: 'dsh-inputbox-game'
