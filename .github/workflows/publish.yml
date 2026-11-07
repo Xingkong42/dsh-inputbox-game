@@ -1,0 +1,37 @@
+# 用 npm Trusted Publishing（OIDC）发布到 npm。
+#
+# 为什么走这条路：npm 网页端的 2FA 现在只提供 security key（WebAuthn），
+# 它产生不了 TOTP 6 位码，于是命令行 `npm publish --otp=` 用不了；
+# 而免 2FA 的令牌按 npm 的公告会在 2027 年 1 月后无法直接发包。
+# Trusted Publishing 走 OIDC：GitHub Actions 用自己的身份发布，npm 侧不要求任何
+# 交互式二次验证，也不受上面那条限制。
+#
+# 需要在 npmjs.com 登记一次（一次就够）：
+#   Access Tokens → Trusted Publisher → GitHub Actions
+#     owner:      Xingkong42
+#     repository: dsh-inputbox-game
+#     workflow:   publish.yml
+name: Publish to npm
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+      # 没有 lockfile，用 install；包里没有构建脚本，client.js 已随仓库提交。
+      - run: npm install --no-audit --no-fund
+      - run: npm publish --provenance --access public
