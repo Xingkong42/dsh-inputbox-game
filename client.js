@@ -1664,10 +1664,11 @@ const LANES = 3;
 
 /** 数值牌：加、乘是好事，除、减是陷阱。 */
 const TILE_OPS = [
-  { op: 'add', text: '+', low: 2, high: 6, weight: 4 },
-  { op: 'mul', text: '×', low: 2, high: 3, weight: 3 },
+  { op: 'add', text: '+', low: 3, high: 8, weight: 4 },
+  { op: 'mul', text: '×', low: 2, high: 2, weight: 3 },
+  { op: 'mul', text: '×', low: 3, high: 3, weight: 1 },
   { op: 'div', text: '÷', low: 2, high: 2, weight: 1 },
-  { op: 'sub', text: '−', low: 1, high: 4, weight: 2 },
+  { op: 'sub', text: '−', low: 1, high: 3, weight: 1 },
 ];
 
 /** 攻击力上限：没有它，×2 的数值牌会让攻击力指数膨胀，首领瞬间就没了。 */
@@ -1725,10 +1726,10 @@ function makeTile() {
   };
 }
 
-function makeMonster() {
+function makeMonster(level = 1) {
   return {
     type: 'monster',
-    value: 1 + Math.floor(Math.random() * 3),
+    value: 2 + Math.floor(Math.random() * 3) + Math.floor(level / 2),
     lane: 0,
     x: 0,
     hit: false,
@@ -1753,6 +1754,8 @@ const rushGame = {
         lane: 1,
         targetLane: 1,
         power: 8,
+        life: 100,
+        maxLife: 100,
         level: 1,
         score: 0,
         kills: 0,
@@ -1794,7 +1797,7 @@ const rushGame = {
       const monsterLane = Math.floor(Math.random() * LANES);
       // 至少留一条道是安全的，否则这一波无解。
       const safeLane = lanes.filter((lane) => lane !== monsterLane)[Math.floor(Math.random() * 2)];
-      const monster = makeMonster();
+      const monster = makeMonster(level);
       monster.lane = monsterLane;
       monster.x = state.width + 40;
       state.entities.push(monster);
@@ -1808,18 +1811,26 @@ const rushGame = {
     // 首领：每 wavesPerLevel 波来一次。
     if (!state.boss && state.waves >= state.wavesPerLevel) {
       state.waves = 0;
-      // 首领的强度跟着当前攻击力走：血量 = 攻击力 × (5 + 关卡)，
-      // 所以这场硬仗总是要打 (5 + 关卡) 秒；而它每秒削掉的攻击力
-      // 也按攻击力的一个比例来 —— 攻击力既是你的 DPS，也是你能挨多久。
-      const hp = player.power * (5 + level);
+      // 首领的血量是**绝对值**，只随关卡涨；它每秒削掉的攻击力也是绝对值。
+      //
+      // 早先这里写的是「血量按当前攻击力算、掉血速度按当前攻击力算」，
+      // 结果是个死亡螺旋：被打得越狠 → 打得越慢 → 战斗拖得越久 → 被削得越多，
+      // 而且拖得越久掉得越多，最后攻击力在开打时就先归零。
+      //
+      // 现在：血量固定（关卡决定），你的攻击力决定**打得多快**（ DPS ），首领的
+      // 伤害是每场固定的量。攻击力越高这场打得越快、掉得越少——强是值得的，
+      // 但再强也不会被拖进无限循环。
+      const hp = 60 + level * 45;
       state.boss = {
         hp,
-        maxHp: Math.max(1, hp),
-        dps: player.power * (0.03 + 0.006 * level),
+        maxHp: hp,
+        dps: 3 + level,
         x: state.width + 120,
         width: Math.max(90, state.width * 0.22),
         name: ['石巨人', '铁面兽', '双头蛇', '深渊像'][Math.min(3, level - 1)],
       };
+      // 清场：首领之战不留残余怪物。
+      state.entities = [];
       state.bossNotice = 1.6;
     }
 
@@ -1828,9 +1839,13 @@ const rushGame = {
     state.entities = state.entities.filter((entity) => entity.x > -60);
     if (state.boss) {
       state.boss.x -= state.speed * dt;
-      // 首领对耗：你的攻击力是 DPS，也是你的命。
+      // 首领对耗：你的攻击力是 DPS（打它掉血），它每秒削你固定量的**生命**。
+      //
+      // 关键在于生命和攻击力是**两个资源**：早先只有一个攻击力，既当 DPS 又当命，
+      // 于是被打得越狠 → 打得越慢 → 战斗拖得越久 → 被削得越多，死锁循环；
+      // 现在战斗期间攻击力不下降，拖不出螺旋，而生命是纯粹的消耗条。
       state.boss.hp -= player.power * dt;
-      player.power -= state.boss.dps * dt;
+      player.life -= state.boss.dps * dt;
       if (state.boss.hp <= 0) {
         player.score += 100 * level;
         player.level += 1;
@@ -1882,7 +1897,8 @@ const rushGame = {
         player.score += 5;
       } else {
         entity.hit = true;
-        player.power = Math.max(0, player.power - entity.value);
+        // 怪物啃的是**生命**（数量），不是攻击力——攻击力是 DPS，动了就拖慢战斗。
+        player.life = Math.max(0, player.life - entity.value);
         player.score = Math.max(0, player.score - 10);
         state.flash = 0.28;
         player.kills += 1;
@@ -1890,9 +1906,9 @@ const rushGame = {
     }
     state.entities = state.entities.filter((entity) => !entity.taken && !entity.hit);
 
-    // 失败：攻击力被磨光。
-    if (player.power <= 0) {
-      player.power = 0;
+    // 失败：生命被啃光。
+    if (player.life <= 0) {
+      player.life = 0;
       state.phase = 'over';
     }
     state.scroll += state.speed * dt;
@@ -1991,11 +2007,30 @@ const rushGame = {
     ctx.textBaseline = 'middle';
     ctx.fillText(String(Math.round(player.power)), player.x, player.y - 22);
 
+    // 生命条（脚下那条细线）：生命是真正的失败条件。
+    const lifeRatio = clampRun(player.life / player.maxLife, 0, 1);
+    const barWidth = 22;
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(player.x - barWidth / 2, player.y + 3, barWidth, 3);
+    ctx.fillStyle = lifeRatio > 0.35 ? theme.success : theme.error;
+    ctx.fillRect(player.x - barWidth / 2, player.y + 3, barWidth * lifeRatio, 3);
+
     // 关卡徽标（顶部居中，避开外壳的 HUD）
     ctx.fillStyle = theme.label;
     ctx.font = '600 10px var(--dsw-font-family, Inter), sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(`第 ${player.level} 关`, width / 2, 10);
+
+    // 首领来啦 / 关卡通过的提示
+    if (state.bossNotice > 0) {
+      ctx.globalAlpha = Math.min(1, state.bossNotice);
+      ctx.fillStyle = theme.error;
+      ctx.font = '600 13px var(--dsw-font-family, Inter), sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(state.boss ? '首领来了' : '过关', width / 2, height / 2);
+      ctx.globalAlpha = 1;
+    }
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
   },
