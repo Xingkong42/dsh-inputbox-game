@@ -11,7 +11,7 @@
 
 > If code can be written by AI, a game can be played by it too — you just watch.
 > This plugin turns the chat composer into a mini-game arcade while a task is running:
-> six games play themselves, and you never touch the keyboard.
+> seven games play themselves, and you never touch the keyboard.
 
 ![设置页](assets/screenshot-1-settings.png)
 
@@ -46,7 +46,7 @@ dsh plugin --profile <profile> add github:Xingkong42/dsh-inputbox-game
 [生态箱](assets/screenshot-5-ecology.png) · [小鸟](assets/screenshot-4-flappy.png) ·
 [乒乓](assets/screenshot-3-pong.png) · [贪吃蛇](assets/screenshot-2-snake.png)
 
-## 六款游戏 / The six games
+## 七款游戏 / The seven games
 
 | 游戏 | 玩法 | 失败点 |
 |---|---|---|
