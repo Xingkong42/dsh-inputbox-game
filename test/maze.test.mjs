@@ -60,7 +60,28 @@ test('走迷宫的墙是自洽的（两面相邻的墙成对出现）', () => {
   }
 });
 
-test('走迷宫的轨迹不会无限堆积', () => {
+test('走迷宫的墙每局随机一种颜色', () => {
+  const styles = new Set();
+  for (let round = 0; round < 40; round += 1) {
+    const state = mazeGame.create(800, 74);
+    styles.add(state.wallStyle);
+    // 走到出口换新图时，颜色也要换。
+    let guard = 0;
+    while (state.escapes === 0 && guard < 20000) {
+      mazeGame.step(state, DT);
+      guard += 1;
+    }
+    styles.add(state.wallStyle);
+  }
+  assert.ok(styles.size >= 2, `墙的颜色只有 ${styles.size} 种，没随机起来`);
+});
+
+test('走迷宫的墙不会用入口/出口的配色（否则分不清）', () => {
+  const state = mazeGame.create(800, 74);
+  assert.ok(['brand', 'food', 'label'].includes(state.wallStyle), `墙用了不该用的颜色: ${state.wallStyle}`);
+});
+
+test('走迷宫的实体不会无限堆积', () => {
   const state = play(120);
   assert.ok(state.trail.length <= 100, `轨迹堆了 ${state.trail.length} 个点`);
 });

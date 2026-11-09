@@ -2286,6 +2286,9 @@ function generateMaze(cols, rows) {
   return walls;
 }
 
+/** 墙可以随机挑的颜色（都取主题里的色，跟随明暗主题）。 */
+const WALL_STYLES = ['brand', 'food', 'label'];
+
 const mazeGame = {
   id: 'maze',
   name: { en: 'Maze', zh: '走迷宫' },
@@ -2349,9 +2352,13 @@ const mazeGame = {
     const { cell, cols, rows, walls } = state;
 
     // 墙：只画上边和左边，最后再补外框，免得每面墙画两遍。
-    ctx.strokeStyle = theme.grid;
-    ctx.globalAlpha = 0.9;
-    ctx.lineWidth = 1;
+    //
+    // 颜色每张迷宫随机挑一种（brand / food / label 三选一）：之前用最淡那档边框色
+    // 配 1px 细线，浅色主题下几乎看不见。线条也加粗了——12px 的格子里
+    // 1px 实在太细。
+    ctx.strokeStyle = theme[state.wallStyle] || theme.brand;
+    ctx.globalAlpha = 1;
+    ctx.lineWidth = Math.max(1.5, cell * 0.14);
     ctx.beginPath();
     for (let y = 0; y < rows; y += 1) {
       for (let x = 0; x < cols; x += 1) {
@@ -2377,13 +2384,11 @@ const mazeGame = {
     ctx.stroke();
     ctx.globalAlpha = 1;
 
-    // 入口与出口。
+    // 入口与出口：红进绿出，和墙的颜色刻意错开，任何时候都分得清。
+    ctx.fillStyle = theme.error;
+    ctx.fillRect(0, state.startY * cell + 1, 3, cell - 2);
     ctx.fillStyle = theme.success;
-    ctx.globalAlpha = 0.5;
-    ctx.fillRect(0, state.ball.startY * cell + 1, 3, cell - 2);
-    ctx.fillStyle = theme.food;
     ctx.fillRect(right - 3, state.exitY * cell + 1, 3, cell - 2);
-    ctx.globalAlpha = 1;
 
     // 走过的轨迹。
     for (const point of state.trail) {
@@ -2397,7 +2402,7 @@ const mazeGame = {
     const ball = state.ball;
     const x = (ball.fromX + (ball.x - ball.fromX) * ball.t) * cell + cell / 2;
     const y = (ball.fromY + (ball.y - ball.fromY) * ball.t) * cell + cell / 2;
-    ctx.fillStyle = theme.brand;
+    ctx.fillStyle = theme.success;
     ctx.beginPath();
     ctx.arc(x, y, Math.max(2.2, cell * 0.26), 0, Math.PI * 2);
     ctx.fill();
@@ -2424,6 +2429,8 @@ const mazeGame = {
 /** 换一张新迷宫，把小球放回入口。 */
 function newMaze(state) {
   state.walls = generateMaze(state.cols, state.rows);
+  // 每张迷宫随机一种墙的颜色。
+  state.wallStyle = WALL_STYLES[Math.floor(Math.random() * WALL_STYLES.length)];
   const startY = Math.floor(Math.random() * state.rows);
   const exitY = Math.floor(Math.random() * state.rows);
   state.startY = startY;
