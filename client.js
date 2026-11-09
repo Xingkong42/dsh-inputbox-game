@@ -1677,6 +1677,9 @@ const POWER_CAP = 99;
 /** 每关多少波来一次首领。 */
 const WAVES_PER_LEVEL = 8;
 
+/** 开火间隔（秒）：每 0.2 秒一发，每发打掉 攻击力 × 0.2 点血，DPS 正好等于攻击力。 */
+const FIRE_INTERVAL = 0.2;
+
 function clampRun(value, low, high) {
   return Math.max(low, Math.min(high, value));
 }
@@ -1770,6 +1773,16 @@ const rushGame = {
       deadTimer: 0,
       flash: 0,
       bossNotice: 0,
+      fireTimer: 0,
+      // 特效：全部是纯数据（位置、寿命、颜色种类），由 draw 渲染成画面。
+      fx: {
+        shots: [],    // 飞行中的弹丸
+        bursts: [],   // 命中爆点
+        rings: [],    // 冲击环
+        shake: 0,     // 屏幕震动
+        flash: 0,     // 全屏闪光
+        muzzle: 0,    // 枪口火光
+      },
     };
     return state;
   },
@@ -1827,6 +1840,7 @@ const rushGame = {
         dps: 3 + level,
         x: state.width + 120,
         width: Math.max(90, state.width * 0.22),
+        flash: 0,
         name: ['石巨人', '铁面兽', '双头蛇', '深渊像'][Math.min(3, level - 1)],
       };
       // 清场：首领之战不留残余怪物。
@@ -1837,21 +1851,77 @@ const rushGame = {
     // 世界左移。
     for (const entity of state.entities) entity.x -= state.speed * dt;
     state.entities = state.entities.filter((entity) => entity.x > -60);
+
+    // ---- 特效推进 ----
+    const fx = state.fx;
+    fx.shake = Math.max(0, fx.shake - dt * 3.2);
+    fx.flash = Math.max(0, fx.flash - dt * 2.6);
+    fx.muzzle = Math.max(0, fx.muzzle - dt * 9);
+
     if (state.boss) {
       state.boss.x -= state.speed * dt;
-      // 首领对耗：你的攻击力是 DPS（打它掉血），它每秒削你固定量的**生命**。
-      //
-      // 关键在于生命和攻击力是**两个资源**：早先只有一个攻击力，既当 DPS 又当命，
-      // 于是被打得越狠 → 打得越慢 → 战斗拖得越久 → 被削得越多，死锁循环；
-      // 现在战斗期间攻击力不下降，拖不出螺旋，而生命是纯粹的消耗条。
-      state.boss.hp -= player.power * dt;
+      state.boss.flash = Math.max(0, state.boss.flash - dt * 5);
       player.life -= state.boss.dps * dt;
-      if (state.boss.hp <= 0) {
-        player.score += 100 * level;
-        player.level += 1;
-        state.boss = null;
-        state.bossNotice = 1.2;
+    }
+
+    // ---- 开火：首领在场上时，小人持续朝它射击 ----
+    //
+    // 伤害跟着子弹走：每 0.2 秒一发，每发打掉 攻击力 × 0.2 点血，
+    // 于是 DPS 正好等于攻击力，弹道、枪口火光和命中爆点都看得见。
+    //
+    // 这里用累加器而不是「倒计时归零就重置」：0.2 − 0.05×4 在浮点下不等于 0，
+    // 倒计时写法会悄悄把射速拖成 0.25 秒一发。累加器减掉整段间隔、余量留着，
+    // 节奏才不会漂。
+    state.fireTimer += dt;
+    while (state.fireTimer >= FIRE_INTERVAL) {
+      state.fireTimer -= FIRE_INTERVAL;
+      if (!state.boss) break;
+      const fromX = player.x;
+      const fromY = player.y - 11;
+      const toX = state.boss.x;
+      const toY = state.height / 2;
+      const dx = toX - fromX;
+      const dy = toY - fromY;
+      const length = Math.hypot(dx, dy) || 1;
+      const speed = 950;
+      fx.shots.push({
+        x: fromX,
+        y: fromY,
+        vx: (dx / length) * speed,
+        vy: (dy / length) * speed,
+        life: 0.4,
+        maxLife: 0.4,
+      });
+      fx.muzzle = 0.09;
+      state.boss.hp -= player.power * FIRE_INTERVAL;
+    }
+
+    // 弹丸飞行与命中。
+    for (const shot of fx.shots) {
+      shot.x += shot.vx * dt;
+      shot.y += shot.vy * dt;
+      shot.life -= dt;
+      if (!shot.dead && state.boss && shot.x >= state.boss.x - state.boss.width / 2) {
+        shot.dead = true;
+        state.boss.flash = 0.16;
+        fx.bursts.push({ x: shot.x, y: shot.y, life: 0.26, maxLife: 0.26, size: 8, kind: 'hit', seed: Math.random() * 6.28 });
       }
+    }
+    fx.shots = fx.shots.filter((shot) => !shot.dead && shot.life > 0);
+    for (const burst of fx.bursts) burst.life -= dt;
+    fx.bursts = fx.bursts.filter((burst) => burst.life > 0);
+    for (const ring of fx.rings) ring.life -= dt;
+    fx.rings = fx.rings.filter((ring) => ring.life > 0);
+
+    if (state.boss && state.boss.hp <= 0) {
+      player.score += 100 * level;
+      player.level += 1;
+      // 首领倒下：炸开一团。
+      fx.bursts.push({ x: state.boss.x, y: state.height / 2, life: 0.5, maxLife: 0.5, size: 16, kind: 'hit', seed: Math.random() * 6.28 });
+      fx.rings.push({ x: state.boss.x, y: state.height / 2, life: 0.45, maxLife: 0.45, radius: 34 });
+      fx.shake = 0.5;
+      state.boss = null;
+      state.bossNotice = 1.2;
     }
 
     // 挑道：看前方最近的实体，选收益最高、又没有怪物的道。
@@ -1901,6 +1971,18 @@ const rushGame = {
         player.life = Math.max(0, player.life - entity.value);
         player.score = Math.max(0, player.score - 10);
         state.flash = 0.28;
+        state.fx.shake = 0.42;
+        state.fx.flash = 0.5;
+        state.fx.bursts.push({
+          x: entity.x,
+          y: state.laneHeight * (entity.lane + 0.5),
+          life: 0.3,
+          maxLife: 0.3,
+          size: 9,
+          kind: 'damage',
+          seed: Math.random() * 6.28,
+        });
+        state.fx.rings.push({ x: entity.x, y: state.laneHeight * (entity.lane + 0.5), life: 0.3, maxLife: 0.3, radius: 12 });
         player.kills += 1;
       }
     }
@@ -1926,6 +2008,13 @@ const rushGame = {
 
   draw(ctx, state, width, height, theme) {
     const laneHeight = state.laneHeight;
+    const fx = state.fx;
+
+    // 屏幕震动：受击或首领倒下时抖一下。
+    if (fx.shake > 0) {
+      const amount = fx.shake * 7;
+      ctx.translate((Math.random() - 0.5) * amount, (Math.random() - 0.5) * amount);
+    }
 
     // 跑道分隔线
     ctx.strokeStyle = theme.grid;
@@ -1974,7 +2063,8 @@ const rushGame = {
     if (state.boss) {
       const boss = state.boss;
       const y = height / 2;
-      ctx.fillStyle = theme.error;
+      // 被击中的一瞬闪白。
+      ctx.fillStyle = boss.flash > 0 ? '#ffffff' : theme.error;
       roundRectRun(ctx, boss.x - boss.width / 2, y - 20, boss.width, 40, 8);
       ctx.fill();
       ctx.fillStyle = '#ffffff';
@@ -1991,6 +2081,41 @@ const rushGame = {
       ctx.fillRect(boss.x - barWidth / 2, y - 28, barWidth * ratio, 4);
     }
 
+    // ---- 攻击表现 ----
+    // 弹丸：一道拉长的亮光，尾随在后面。
+    for (const shot of fx.shots) {
+      ctx.globalAlpha = Math.min(1, shot.life / shot.maxLife);
+      ctx.fillStyle = theme.food;
+      ctx.beginPath();
+      ctx.ellipse(shot.x, shot.y, 4.2, 1.7, Math.atan2(shot.vy, shot.vx), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // 命中爆点：几颗向外飞溅的火星。
+    for (const burst of fx.bursts) {
+      const progress = 1 - burst.life / burst.maxLife;
+      ctx.globalAlpha = Math.max(0, 1 - progress);
+      ctx.fillStyle = burst.kind === 'damage' ? theme.error : theme.food;
+      for (let i = 0; i < 7; i += 1) {
+        const angle = (i / 7) * Math.PI * 2 + burst.seed;
+        const radius = burst.size * progress;
+        ctx.beginPath();
+        ctx.arc(burst.x + Math.cos(angle) * radius, burst.y + Math.sin(angle) * radius, 1.8 * (1 - progress) + 0.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+    // 冲击环
+    for (const ring of fx.rings) {
+      const progress = 1 - ring.life / ring.maxLife;
+      ctx.globalAlpha = Math.max(0, (1 - progress) * 0.85);
+      ctx.strokeStyle = theme.label;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(ring.x, ring.y, Math.max(1, ring.radius * progress), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
     // 小人 + 攻击力
     const player = state.player;
     ctx.globalAlpha = state.flash > 0 ? 0.45 : 1;
@@ -2001,6 +2126,16 @@ const rushGame = {
     ctx.arc(player.x, player.y - 12, 4, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
+
+    // 枪口火光：开火的一瞬冒个小亮点。
+    if (fx.muzzle > 0) {
+      ctx.globalAlpha = Math.min(1, fx.muzzle * 8);
+      ctx.fillStyle = theme.food;
+      ctx.beginPath();
+      ctx.arc(player.x + 6, player.y - 11, 2.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
     ctx.fillStyle = theme.label;
     ctx.font = '600 10px var(--dsw-font-family, Inter), sans-serif';
     ctx.textAlign = 'center';
@@ -2033,6 +2168,14 @@ const rushGame = {
     }
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
+
+    // 受击时的全屏红闪（画在最后，盖住整个画面）。
+    if (fx.flash > 0) {
+      ctx.globalAlpha = Math.min(0.45, fx.flash * 0.5);
+      ctx.fillStyle = theme.error;
+      ctx.fillRect(0, 0, width, height);
+      ctx.globalAlpha = 1;
+    }
   },
 
   hud(state) {
