@@ -32,7 +32,7 @@ const WAVES_PER_LEVEL = 8;
 /** 开火间隔（秒）：每 0.2 秒一发，每发打掉 攻击力 × 0.2 点血，DPS 正好等于攻击力。 */
 const FIRE_INTERVAL = 0.2;
 
-function clampRun(value, low, high) {
+function clampRush(value, low, high) {
   return Math.max(low, Math.min(high, value));
 }
 
@@ -65,7 +65,7 @@ function applyTile(state, tile) {
     case 'sub': state.player.power = Math.max(1, state.player.power - tile.value); break;
     default: break;
   }
-  state.player.power = clampRun(Math.round(state.player.power), 0, POWER_CAP);
+  state.player.power = clampRush(Math.round(state.player.power), 0, POWER_CAP);
 }
 
 function makeTile() {
@@ -426,7 +426,7 @@ export const rushGame = {
       ctx.fillText(boss.name, boss.x, y);
       // 血条
       const barWidth = boss.width;
-      const ratio = clampRun(boss.hp / boss.maxHp, 0, 1);
+      const ratio = clampRush(boss.hp / boss.maxHp, 0, 1);
       ctx.fillStyle = 'rgba(0,0,0,0.35)';
       ctx.fillRect(boss.x - barWidth / 2, y - 28, barWidth, 4);
       ctx.fillStyle = theme.success;
@@ -495,7 +495,7 @@ export const rushGame = {
     ctx.fillText(String(Math.round(player.power)), player.x, player.y - 22);
 
     // 生命条（脚下那条细线）：生命是真正的失败条件。
-    const lifeRatio = clampRun(player.life / player.maxLife, 0, 1);
+    const lifeRatio = clampRush(player.life / player.maxLife, 0, 1);
     const barWidth = 22;
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.fillRect(player.x - barWidth / 2, player.y + 3, barWidth, 3);

@@ -302,7 +302,7 @@ function drawHorse(ctx, horse, x, y, theme, picked) {
 
   // 身体
   ctx.fillStyle = body;
-  roundRectPath(ctx, -10, -5, 17, 7, 3);
+  roundRectHorse(ctx, -10, -5, 17, 7, 3);
   ctx.fill();
 
   // 颈与头
@@ -344,7 +344,7 @@ function drawHorse(ctx, horse, x, y, theme, picked) {
   ctx.restore();
 }
 
-function roundRectPath(ctx, x, y, width, height, radius) {
+function roundRectHorse(ctx, x, y, width, height, radius) {
   const r = Math.min(radius, width / 2, height / 2);
   ctx.beginPath();
   ctx.moveTo(x + r, y);

@@ -15,11 +15,27 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 /** 内联顺序 = 默认轮播顺序。 */
-const GAME_FILES = ['snake', 'pong', 'flappy', 'life', 'horse', 'runner', 'rush'];
+const GAME_FILES = ['snake', 'pong', 'flappy', 'life', 'horse', 'runner', 'rush', 'maze'];
 
 const parts = [];
+const declared = new Map();
 for (const name of GAME_FILES) {
   const source = await readFile(join(root, 'src', 'games', `${name}.mjs`), 'utf8');
+  // 所有游戏会被内联进**同一个作用域**，所以顶层标识符必须互不相同。
+  // 踩过两次同样的坑（DIRS / clampRun / advance / roundRectPath 撞车），
+  // 这里直接拦下来，别等构建产物报 "Identifier has already been declared"。
+  for (const line of source.split('\n')) {
+    const match = /^(?:const|let|function)\s+([A-Za-z_$][\w$]*)/.exec(line);
+    if (!match) continue;
+    const identifier = match[1];
+    if (declared.has(identifier)) {
+      throw new Error(
+        `顶层标识符 "${identifier}" 在 ${declared.get(identifier)} 和 ${name}.mjs 里重复了 —— `
+        + '它们会被内联进同一个作用域，请改名。',
+      );
+    }
+    declared.set(identifier, name);
+  }
   parts.push(`// ---- src/games/${name}.mjs ----\n${source.replace(/^export\s+/gm, '')}`);
 }
 const registry = await readFile(join(root, 'src', 'games', 'registry.mjs'), 'utf8');

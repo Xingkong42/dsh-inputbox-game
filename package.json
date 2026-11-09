@@ -15,7 +15,7 @@
   "dependencies": {
     "@deepseek-ai/schemastery": "^3.18.4"
   },
-  "description": "输入框小游戏：任务连续运行超过设定时间后，对话输入框变成自动运行的小游戏（贪吃蛇 / 乒乓 / 小鸟 / 生态箱 / 赛马 / 跳跃跑酷 / 数值跑酷）；点击输入框之外开始游戏，点击输入框即恢复正常编辑。 — Composer mini-games: the chat composer turns into an auto-playing mini game while a task keeps running. Click outside the input box to start the game.",
+  "description": "输入框小游戏：任务连续运行超过设定时间后，对话输入框变成自动运行的小游戏（贪吃蛇 / 乒乓 / 小鸟 / 生态箱 / 赛马 / 跳跃跑酷 / 数值跑酷 / 走迷宫）；点击输入框之外开始游戏，点击输入框即恢复正常编辑。 — Composer mini-games: the chat composer turns into an auto-playing mini game while a task keeps running. Click outside the input box to start the game.",
   "keywords": [
     "deepseek-harness",
     "dsh",
