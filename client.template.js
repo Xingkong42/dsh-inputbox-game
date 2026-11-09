@@ -608,13 +608,41 @@ window.__ModuleLoader__.load({
         return typeof value === 'string' && value.length > 0 && value !== key ? value : fallback;
       };
 
+      // 两种行式：
+      //
+      // · 横向行（标签在左、控件在右）——控件必须**窄**（一个下拉框）。
+      //   文字列给 flex:1 + min-width:0，能正常折行，不会被挤成竖排一列字。
+      // · 纵向块（标签在上、控件在下）——控件本身很宽时用这个，比如游戏池那排复选框。
+      //
+      // 之前游戏池用的是横向行：复选框列表把右侧撑满，左边的文字列被压到
+      // 几像素宽，于是「轮换时可以选到哪些游戏。」变成一列竖着的单字。
       const row = (label, hint, control) => h('div', {
-        style: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 },
+        style: {
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 16,
+          padding: '14px 0',
+          borderBottom: '0.5px solid var(--dsw-alias-border-l2)',
+        },
       },
-        h('div', { style: { minWidth: 0 } },
+        h('div', { style: { flex: '1 1 auto', minWidth: 0, paddingRight: 24 } },
           h('div', { style: { fontSize: 13, lineHeight: '20px', color: 'var(--dsw-alias-label-primary)' } }, label),
-          h('div', { style: { fontSize: 12, lineHeight: '18px', color: 'var(--dsw-alias-label-secondary)' } }, hint)),
-        h('div', { style: { flex: 'none' } }, control));
+          h('div', { style: { fontSize: 12, lineHeight: '18px', color: 'var(--dsw-alias-label-tertiary)' } }, hint)),
+        h('div', { style: { flex: '0 0 auto' } }, control));
+
+      const block = (label, hint, control) => h('div', {
+        style: {
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6,
+          padding: '14px 0',
+          borderBottom: '0.5px solid var(--dsw-alias-border-l2)',
+        },
+      },
+        h('div', { style: { fontSize: 13, lineHeight: '20px', color: 'var(--dsw-alias-label-primary)' } }, label),
+        h('div', { style: { fontSize: 12, lineHeight: '18px', color: 'var(--dsw-alias-label-tertiary)' } }, hint),
+        h('div', { style: { marginTop: 2 } }, control));
 
       const select = (value, options, onChange) => h('select', {
         value: String(value),
@@ -644,11 +672,22 @@ window.__ModuleLoader__.load({
         })));
 
       const enabled = Array.isArray(settings.games) ? settings.games : [];
+      // 复选框列表：每个选项整体不折行（nowrap），列表本身换行（flex-wrap）。
+      // 这样八个游戏会排成两三行，而不是把每项里的字挤成竖排。
       const gameBoxes = h('div', {
-        style: { display: 'flex', flexWrap: 'wrap', gap: '4px 12px' },
+        style: { display: 'flex', flexWrap: 'wrap', gap: '8px 20px' },
       }, GAMES.map((entry) => h('label', {
         key: entry.id,
-        style: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, lineHeight: '20px', color: 'var(--dsw-alias-label-primary)' },
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          fontSize: 13,
+          lineHeight: '20px',
+          color: 'var(--dsw-alias-label-primary)',
+          whiteSpace: 'nowrap',
+          cursor: 'pointer',
+        },
       },
         h('input', {
           type: 'checkbox',
@@ -662,9 +701,15 @@ window.__ModuleLoader__.load({
         }),
         h('span', null, translate(`game.${entry.id}`, {}, entry.name?.en ?? entry.id)))));
 
-      return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 14, padding: '4px 0' } },
-        h('div', { style: { fontSize: 12, lineHeight: '18px', color: 'var(--dsw-alias-label-secondary)' } },
-          translate('settings.intro', {}, '')),
+      return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 0, padding: '0 0 8px' } },
+        h('div', {
+          style: {
+            fontSize: 12,
+            lineHeight: '18px',
+            color: 'var(--dsw-alias-label-tertiary)',
+            padding: '10px 0 2px',
+          },
+        }, translate('settings.intro', {}, '')),
         row(
           translate('settings.threshold', {}, 'Take over after'),
           translate('settings.threshold.hint', {}, ''),
@@ -675,12 +720,13 @@ window.__ModuleLoader__.load({
           translate('settings.rotation.hint', {}, ''),
           select(settings.rotationMs, rotationOptions, (value) => store.write({ rotationMs: value })),
         ),
-        row(
+        // 游戏池用纵向块：它比其它控件宽得多，横排会把左边挤扁。
+        block(
           translate('settings.games', {}, 'Games'),
           translate('settings.games.hint', {}, ''),
           gameBoxes,
         ),
-        h('div', {},
+        h('div', { style: { paddingTop: '14px' } },
           h('button', {
             type: 'button',
             onClick: () => store.clear(),
