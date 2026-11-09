@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 /** 内联顺序 = 默认轮播顺序。 */
-const GAME_FILES = ['snake', 'pong', 'flappy', 'life', 'horse', 'runner'];
+const GAME_FILES = ['snake', 'pong', 'flappy', 'life', 'horse', 'runner', 'rush'];
 
 const parts = [];
 for (const name of GAME_FILES) {

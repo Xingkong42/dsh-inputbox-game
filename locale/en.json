@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Composer mini-games",
-    "description": "If code can be written by AI, a game can be played by it too — you just watch. Turns the chat composer into a mini-game arcade while a task runs: snake, pong, flappy, ecology, horse race and runner all play themselves, no input needed. Click outside the input box to start the game; focusing it restores the normal editor."
+    "description": "If code can be written by AI, a game can be played by it too — you just watch. Turns the chat composer into a mini-game arcade while a task runs: snake, pong, flappy, ecology, horse race, runner and number rush all play themselves, no input needed. Click outside the input box to start the game; focusing it restores the normal editor."
   }
 }

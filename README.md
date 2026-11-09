@@ -56,6 +56,7 @@ dsh plugin --profile <profile> add github:Xingkong42/dsh-inputbox-game
 | 生态箱 | 群体吃资源、繁殖，躲陨石与寒潮干旱 | 群体灭绝 |
 | 赛马 | 五匹马自动比赛，你押一注 | 本金破产 |
 | 跳跃跑酷 | 小人自动起跳越过障碍与深坑 | 掉进坑里 |
+| 数值跑酷 | 三条道自动选路，吃数值牌涨攻击力，撞怪掉攻击力，逐关打首领 | 攻击力被磨光 |
 
 每局结束后随机换一个游戏继续（失败重开也可能是同一个）；
 也可以在设置里关掉轮换，或者只留下其中一两款。
@@ -89,7 +90,7 @@ dsh plugin --profile <profile> add github:Xingkong42/dsh-inputbox-game
   到点后用 `conversation.input.overlay` 槽位接管输入框卡片；覆盖层 `pointer-events:none`，
   点击会穿透到编辑器，于是「聚焦输入框即恢复」不需要任何额外交互。
 - **宿主半面**：只做一件事——把配置通过一条只读 HTTP 路由下发给浏览器半面。
-- **六个游戏引擎**是纯逻辑、无 DOM 的独立模块，实现同一个契约
+- **七个游戏引擎**是纯逻辑、无 DOM 的独立模块，实现同一个契约
   （`create / step / draw / hud`），因此可以逐个做单元测试。
 - 配色全部取自主题变量 `--dsw-alias-*`，跟随宿主的明暗主题。
 
